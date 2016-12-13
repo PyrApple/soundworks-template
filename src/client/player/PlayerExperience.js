@@ -1,39 +1,31 @@
 import * as soundworks from 'soundworks/client';
-import PlayerRenderer from './PlayerRenderer';
 
 const audioContext = soundworks.audioContext;
 
 const viewTemplate = `
-  <canvas class="background"></canvas>
   <div class="foreground">
-    <div class="section-top flex-middle"></div>
+    <div class="section-top flex-middle">
+      <p class="big">Tunneling test</p>
+    </div>
     <div class="section-center flex-center">
-      <p class="big"><%= title %></p>
+      <button class="btn" id="send-msg">Send websocket message</button>
     </div>
     <div class="section-bottom flex-middle"></div>
   </div>
 `;
 
-// this experience plays a sound when it starts, and plays another sound when
-// other clients join the experience
 export default class PlayerExperience extends soundworks.Experience {
-  constructor(assetsDomain, audioFiles) {
+  constructor() {
     super();
 
-    this.platform = this.require('platform', { features: ['web-audio', 'wake-lock'] });
-    this.checkin = this.require('checkin', { showDialog: false });
-    this.loader = this.require('loader', {
-      assetsDomain: assetsDomain,
-      files: audioFiles,
-    });
+    this._sendMessage = this._sendMessage.bind(this);
   }
 
   init() {
     // initialize the view
     this.viewTemplate = viewTemplate;
-    this.viewContent = { title: `Let's go!` };
-    this.viewCtor = soundworks.CanvasView;
-    this.viewOptions = { preservePixelRatio: true };
+    this.viewCtor = soundworks.SegmentedView;
+    this.viewEvents = { 'click #send-msg': this._sendMessage };
     this.view = this.createView();
   }
 
@@ -45,34 +37,14 @@ export default class PlayerExperience extends soundworks.Experience {
 
     this.show();
 
-    // play the first loaded buffer immediately
-    const src = audioContext.createBufferSource();
-    src.buffer = this.loader.buffers[0];
-    src.connect(audioContext.destination);
-    src.start(audioContext.currentTime);
-
-    // play the second loaded buffer when the message `play` is received from
-    // the server, the message is send when another player joins the experience.
-    this.receive('play', () => {
-      const delay = Math.random();
-      const src = audioContext.createBufferSource();
-      src.buffer = this.loader.buffers[1];
-      src.connect(audioContext.destination);
-      src.start(audioContext.currentTime + delay);
+    this.receive('load:message', (data) => {
+      console.log('RECEIVED "load:message" with data:', data)
     });
+  }
 
-    // initialize rendering
-    this.renderer = new PlayerRenderer(100, 100);
-    this.view.addRenderer(this.renderer);
-
-    // this function is called before each update (`Renderer.render`) of the canvas
-    this.view.setPreRender(function(ctx, dt) {
-      ctx.save();
-      ctx.globalAlpha = 0.05;
-      ctx.fillStyle = '#000000';
-      ctx.rect(0, 0, ctx.canvas.width, ctx.canvas.height);
-      ctx.fill();
-      ctx.restore();
-    });
+  _sendMessage() {
+    const data = [Math.random(), Math.random()];
+    this.send('btn:message', data);
+    console.log('SENT "btn:message" with data:', data);
   }
 }
