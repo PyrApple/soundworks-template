@@ -4,6 +4,10 @@ import PlayerRenderer from './PlayerRenderer';
 
 const audioContext = soundworks.audioContext;
 
+// var wav = require('wav');
+// const assetsPath = __dirname + '/../../public/sounds/'
+// var lamejs = require('lamejs');
+
 const viewTemplate = `
   <canvas class="background"></canvas>
   <div class="foreground">
@@ -38,14 +42,6 @@ export default class PlayerExperience extends soundworks.Experience {
     this.view = this.createView();
   }
 
-  playSound(buffer, randomPitchVar = 0) {
-    const src = audioContext.createBufferSource();
-    src.connect(audioContext.destination);
-    src.buffer = buffer;
-    src.start(audioContext.currentTime);
-    src.playbackRate.value = centToLinear((Math.random() * 2 - 1) * randomPitchVar);
-  }
-
   start() {
     super.start(); // don't forget this
 
@@ -54,35 +50,49 @@ export default class PlayerExperience extends soundworks.Experience {
 
     this.show();
 
-    // play a sound
-    this.playSound(this.audioBufferManager.data.tones[0]);
+    
+    // var wavFile = assetsPath + 'wave-a.wav';
+    // var request = new XMLHttpRequest();
+    // request.open("GET", wavFile, true);
+    // request.responseType = "arraybuffer";
+    // // Our asynchronous callback
+    // request.onload = () => {
+    //     var audioData = request.response;
+    //     var wav = lamejs.WavHeader.readHeader(new DataView(audioData));
+    //     console.log('wav:', wav);
+    //     var samples = new Int16Array(audioData, wav.dataOffset, wav.dataLen / 2);
+    //     this.encodeMono(wav.channels, wav.sampleRate, samples);
+    // };
+    // request.send();
 
-    // play a sound when the message `hello` is received from the server
-    // (the message is send when another player joins the experience)
-    this.receive('hello', () => this.playSound(this.audioBufferManager.data.tones[1]));
 
-    // play a sound when the message `goodbye` is received from the server
-    // (the message is send when another player joins the experience)
-    this.receive('goodbye', () => this.playSound(this.audioBufferManager.data.tones[2]));
-
-    // initialize rendering
-    const vx = 200 + Math.floor(Math.random() * 200);
-    const vy = 200 + Math.floor(Math.random() * 200);
-    this.renderer = new PlayerRenderer(vx, vy, (edge) => {
-      const idx = (edge === 'top') ? 0 : (edge === 'left' || edge === 'right') ? 1 : 2;
-      this.playSound(this.audioBufferManager.data.clicks[idx], 300);
-    });
-
-    this.view.addRenderer(this.renderer);
-
-    // this function is called before each update (`Renderer.render`) of the canvas
-    this.view.setPreRender(function(ctx, dt, canvasWidth, canvasHeight) {
-      ctx.save();
-      ctx.globalAlpha = 0.1;
-      ctx.fillStyle = '#000000';
-      ctx.rect(0, 0, canvasWidth, canvasHeight);
-      ctx.fill();
-      ctx.restore();
-    });
   }
+
+// encodeMono(channels, sampleRate, samples) {
+//       var buffer = [];
+//       var mp3enc = new lamejs.Mp3Encoder(channels, sampleRate, 128);
+//       var remaining = samples.length;
+//       var maxSamples = 1152;
+//       for (var i = 0; remaining >= maxSamples; i += maxSamples) {
+//           var mono = samples.subarray(i, i + maxSamples);
+//           var mp3buf = mp3enc.encodeBuffer(mono);
+//           if (mp3buf.length > 0) {
+//               buffer.push(new Int8Array(mp3buf));
+//           }
+//           remaining -= maxSamples;
+//       }
+//       var d = mp3enc.flush();
+//       if(d.length > 0){
+//           buffer.push(new Int8Array(d));
+//       }
+//       console.log('done encoding, size=', buffer.length);
+//       var blob = new Blob(buffer, {type: 'audio/mp3'});
+//       var bUrl = window.URL.createObjectURL(blob);
+//       console.log('Blob created, URL:', bUrl);
+//       // window.myAudioPlayer = document.createElement('audio');
+//       // window.myAudioPlayer.src = bUrl;
+//       // window.myAudioPlayer.setAttribute('controls', '');
+//       // window.myAudioPlayer.play();
+//   }
+
 }
