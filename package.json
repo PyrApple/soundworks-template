@@ -20,6 +20,10 @@
     "url": "https://github.com/collective-soundworks/soundworks-template"
   },
   "dependencies": {
+    "ambisonics": "^0.2.2",
+    "audio": "^1.2.0",
+    "audio-encode-wav": "^0.2.0",
+    "audiobuffer-to-wav": "^1.0.0",
     "babel-runtime": "^6.6.1",
     "debug": "^2.1.2",
     "fs": "0.0.1-security",
@@ -28,7 +32,8 @@
     "soundworks": "collective-soundworks/soundworks#v1.1.1",
     "source-map-support": "^0.4.0",
     "w3c-xmlhttprequest": "^2.1.2",
-    "wav": "^1.0.1"
+    "wav": "^1.0.1",
+    "web-audio-api": "^0.2.2"
   },
   "devDependencies": {
     "babel-core": "^6.14.0",

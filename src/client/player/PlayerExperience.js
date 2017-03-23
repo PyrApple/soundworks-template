@@ -2,6 +2,10 @@ import * as soundworks from 'soundworks/client';
 import { centToLinear } from 'soundworks/utils/math';
 import PlayerRenderer from './PlayerRenderer';
 
+import AudioStream from './AudioStream';
+
+import * as ambisonics from 'ambisonics';
+
 const audioContext = soundworks.audioContext;
 
 // var wav = require('wav');
@@ -25,12 +29,16 @@ export default class PlayerExperience extends soundworks.Experience {
   constructor(assetsDomain) {
     super();
 
+    // services
+    this.sync = this.require('sync');
     this.platform = this.require('platform', { features: ['web-audio'] });
     this.checkin = this.require('checkin', { showDialog: false });
     this.audioBufferManager = this.require('audio-buffer-manager', {
       assetsDomain: assetsDomain,
       directories: { path: 'sounds', recursive: true },
     });
+
+    this.audioStream = new AudioStream(this);
   }
 
   init() {
@@ -40,6 +48,9 @@ export default class PlayerExperience extends soundworks.Experience {
     this.viewCtor = soundworks.CanvasView;
     this.viewOptions = { preservePixelRatio: true };
     this.view = this.createView();
+
+    // init stream
+    this.audioStream.init();
   }
 
   start() {
@@ -49,50 +60,82 @@ export default class PlayerExperience extends soundworks.Experience {
       this.init();
 
     this.show();
-
     
-    // var wavFile = assetsPath + 'wave-a.wav';
-    // var request = new XMLHttpRequest();
-    // request.open("GET", wavFile, true);
-    // request.responseType = "arraybuffer";
-    // // Our asynchronous callback
-    // request.onload = () => {
-    //     var audioData = request.response;
-    //     var wav = lamejs.WavHeader.readHeader(new DataView(audioData));
-    //     console.log('wav:', wav);
-    //     var samples = new Int16Array(audioData, wav.dataOffset, wav.dataLen / 2);
-    //     this.encodeMono(wav.channels, wav.sampleRate, samples);
-    // };
-    // request.send();
+    // ambisonic
+    let irUrl = 'sounds/irs/room-medium-1-furnished-src-20-Set1_16b.wav';
+    // create ambisonic decoder (common to all sources)
+    this.ambisonicOrder = 1;
+    this.decoder = new ambisonics.binDecoder(audioContext, this.ambisonicOrder);
+    this.rotator = new ambisonics.sceneRotator(audioContext, this.ambisonicOrder);
+    var loader_filters = new ambisonics.HOAloader(audioContext, this.ambisonicOrder, irUrl, (bufferIr) => { 
+        this.decoder.updateFilters(bufferIr); 
+    });
+    loader_filters.load();
+    // connect graph
+    this.rotator.out.connect(this.decoder.in);
+    this.decoder.out.connect(audioContext.destination);
 
+    setInterval( () => { 
+        this.rotator.yaw += 4;
+        // console.log('azim', this.rotator.yaw);
+        this.rotator.elev = 0;
+        this.rotator.updateRotMtx();
+    }, 100);
+    
+
+    this.audioStream.loop = true;
+    this.audioStream.sync = true;
+    // this.audioStream.out.connect(audioContext.destination);
+    this.audioStream.url = 'Boucle_FranceInfo_Regie_Ambi_01_01-04ch.wav';
+    // this.audioStream.url = '13_Misconceptions_About_Global_Warming_Cut.wav';
+
+    let when = 0; 
+    let offset = 0;
+    this.audioStream.start(when, offset);
+    
+    this.audioStream.connect(this.rotator.in);
+
+    // // debug: start source at same time    
+    // let src = audioContext.createBufferSource();
+    // src.buffer = this.audioBufferManager.data[0];
+    // src.start(audioContext.currentTime + when, offset);
+    
+    // src.connect(audioContext.destination)
+    // this.audioStream.connect(audioContext.destination);
+
+    // setTimeout( () => { 
+    //   this.audioStream.start(when, offset);
+    //   src.start(audioContext.currentTime + when, offset);
+    // }, 6000);
+
+    when = 4.5;
+    setTimeout( () => { 
+      this.audioStream.stop(when); 
+      // src.stop(audioContext.currentTime + when);
+    }, 12000 );
+
+
+    // // DEBUG: BUFFERED LEFT / STREAMED RIGHT EAR
+    // var splitter = audioContext.createChannelSplitter(2);
+    // src.connect(splitter);
+    // var merger = audioContext.createChannelMerger(2);
+    // var gainNode = audioContext.createGain();
+    // gainNode.gain.value = 0.0;
+    // splitter.connect(gainNode, 0);
+    // gainNode.connect(merger, 0, 1);
+    // splitter.connect(merger, 1, 0);
+    // merger.connect(audioContext.destination);
+
+    // var splitter2 = audioContext.createChannelSplitter(2);
+    // this.audioStream.connect(splitter2);
+    // var gainNode2 = audioContext.createGain();
+    // gainNode2.gain.value = 0.0;
+    // splitter2.connect(gainNode2, 0);
+    // splitter2.connect(merger, 0, 1);
+    // gainNode2.connect(merger, 0, 0);
 
   }
 
-// encodeMono(channels, sampleRate, samples) {
-//       var buffer = [];
-//       var mp3enc = new lamejs.Mp3Encoder(channels, sampleRate, 128);
-//       var remaining = samples.length;
-//       var maxSamples = 1152;
-//       for (var i = 0; remaining >= maxSamples; i += maxSamples) {
-//           var mono = samples.subarray(i, i + maxSamples);
-//           var mp3buf = mp3enc.encodeBuffer(mono);
-//           if (mp3buf.length > 0) {
-//               buffer.push(new Int8Array(mp3buf));
-//           }
-//           remaining -= maxSamples;
-//       }
-//       var d = mp3enc.flush();
-//       if(d.length > 0){
-//           buffer.push(new Int8Array(d));
-//       }
-//       console.log('done encoding, size=', buffer.length);
-//       var blob = new Blob(buffer, {type: 'audio/mp3'});
-//       var bUrl = window.URL.createObjectURL(blob);
-//       console.log('Blob created, URL:', bUrl);
-//       // window.myAudioPlayer = document.createElement('audio');
-//       // window.myAudioPlayer.src = bUrl;
-//       // window.myAudioPlayer.setAttribute('controls', '');
-//       // window.myAudioPlayer.play();
-//   }
-
 }
+
+
