@@ -1,6 +1,10 @@
 import { Experience } from 'soundworks/server';
 import AudioStreamer from './AudioStreamer';
 
+// DEBUG: ttest mp3 conversion
+var AudioContext = require('web-audio-api').AudioContext;
+const audioContext = new AudioContext;
+
 // server-side 'player' experience.
 export default class PlayerExperience extends Experience {
   constructor(clientType) {
@@ -18,7 +22,37 @@ export default class PlayerExperience extends Experience {
 
   // if anything needs to append when the experience starts
   start() {
-    // this.wav2mp3();   
+    // debug: test mp3 conversion
+    
+        
+    // let buffer = audioContext.createBuffer(2, 44100 * 2, 44100);
+
+    // let fileName = __dirname + '/../../public/sounds/13_Misconceptions_About_Global_Warming_Cut.mp3'
+    let fileName = __dirname + '/../../public/sounds/wave-a.mp3'
+
+    let buffer = loadAudioBuffer(fileName).then( (buffer) => {
+      
+      var toWav = require('audiobuffer-to-wav');
+      let outputData = toWav( buffer );
+      console.log(outputData)
+      // for( let i = 0; i < 10; i++){
+      //   console.log(outputData[i])
+      // }
+
+      outputData = this.audioStreamer.toMp3( buffer );
+      // for( let i = 0; i < outputData[0].length; i++){
+      //   console.log(outputData[0][i])
+      // }
+      outputData = outputData[0].buffer;
+      console.log(outputData);
+
+      var fs = require('fs');
+      fs.writeFile( 'test.mp3', Buffer( outputData ), () => {
+        console.log('saved audio file to disk:');
+      });
+    } , (err) => { console.error(err); });
+
+
   }
   
   // if anything needs to happen when a client enters the performance (*i.e.*
@@ -33,4 +67,22 @@ export default class PlayerExperience extends Experience {
     this.audioStreamer.exit(client);
   }
 
+}
+
+// read file from disk, return audio buffer in promise
+function loadAudioBuffer(fileName) {
+  const promise = new Promise((resolve, reject) => {
+    fs.readFile(fileName, (error, buffer) => {
+      // skip if cannot find file
+      if (error) { 
+        reject(error);
+        return; 
+      }
+      // decode file data to audio buffer
+      audioContext.decodeAudioData(buffer, (audioBuffer) => { 
+        resolve(audioBuffer); },
+        (error) => { reject(error); });
+    });
+  });
+  return promise;
 }

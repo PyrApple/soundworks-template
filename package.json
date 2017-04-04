@@ -33,7 +33,8 @@
     "source-map-support": "^0.4.0",
     "w3c-xmlhttprequest": "^2.1.2",
     "wav": "^1.0.1",
-    "web-audio-api": "^0.2.2"
+    "web-audio-api": "^0.2.2",
+    "web-audio-stream": "^2.2.0"
   },
   "devDependencies": {
     "babel-core": "^6.14.0",

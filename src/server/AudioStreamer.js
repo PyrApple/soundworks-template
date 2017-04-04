@@ -41,8 +41,10 @@ function loadAudioBuffer(fileName) {
 
 // require
 var fs = require('fs');
+var lame = require('lame');
 var toWav = require('audiobuffer-to-wav');
 var AudioContext = require('web-audio-api').AudioContext
+var lamejs = require('lamejs'); // warning: apply use-strict on all future modules required / imported from this point
 
 // define constants
 const audioContext = new AudioContext;
@@ -141,12 +143,24 @@ export default class AudioStreamer {
     // get buffer chunk
     let buffer = this.bufferMap.get(fileName);
     let chunk = this.getChunk(buffer, offset, chunkDuration);
-    // convert audio buffer to wav
-    let wav = toWav(chunk);
+    // get file type (only supports .wav and .mp3 for now)
+    let extension = fileName.split('.').pop();
+    if( extension === 'wav' ){
+      // convert audio buffer to wav
+      var outputData = toWav(chunk);
+    }
+    // else if( extension === 'mp3' ){
+    //   // convert audio buffer to mp3
+    //   var outputData = toMp3(chunk);
+    // }
+    else{ 
+      console.error( 'format not supported yet:', extension, 'discard writing to disk' );
+      return;
+    }
     // get output file name / path
     let chunkPath = tmpPath + chunkName;
     // write (async) wav file to disk
-    fs.writeFile( chunkPath, Buffer(wav), () => {
+    fs.writeFile( chunkPath, Buffer( outputData ), () => {
       console.log('saved audio file to disk: \n', chunkName);
       callback();
     });
@@ -188,8 +202,42 @@ export default class AudioStreamer {
     return outputBuffer;
   }
 
+  toMp3(buffer){
+      var mp3Data = [];
+
+      var mp3encoder = new lamejs.Mp3Encoder(1, 44100, 128); //mono 44.1khz encode to 128kbps
+      var samplesInt = new Int16Array( buffer.length ); //one second of silence replace that with your own samples
+      // for(let i = 0; i < samples.length; i++){
+      //   samples[i] = 256 * Math.random();
+      // }
+      var samplesFloat = buffer.getChannelData(0);
+      
+      
+      for(let i = 0; i < samplesInt.length; i++){
+        samplesInt[i] = Math.round( samplesFloat[i] * 1000 );
+        // if( samples[i] >=  100 ){ console.log(samples[i])}
+      }      
+      // console.log('samples', samples)
+      var mp3Tmp = mp3encoder.encodeBuffer(samplesInt); //encode mp3
+
+      //Push encode buffer to mp3Data variable
+      mp3Data.push(mp3Tmp);
+
+      // Get end part of mp3
+      mp3Tmp = mp3encoder.flush();
+
+      // Write last data to the output data, too
+      // mp3Data contains now the complete mp3Data
+      mp3Data.push(mp3Tmp);
+      
+      console.log(mp3Data)
+
+      return mp3Data;
+  }
+
 }
 
+// 
 
 // // TODO : encode local wav to mp3 and save to disk
 
