@@ -88,9 +88,9 @@ export default class PlayerExperience extends soundworks.Experience {
     this.audioStream.loop = true;
     this.audioStream.sync = true;
     // this.audioStream.url = 'Boucle_FranceInfo_Regie_Ambi_01_01-04ch.wav';
-    // this.audioStream.url = '13_Misconceptions_About_Global_Warming_Cut.wav';
-    this.audioStream.url = '13_Misconceptions_About_Global_Warming_Cut.mp3';
-    // this.audioStream.out.connect(audioContext.destination);
+    this.audioStream.url = '13_Misconceptions_About_Global_Warming_Cut.wav';
+    // this.audioStream.url = '13_Misconceptions_About_Global_Warming_Cut.mp3';
+    
 
     // start audio stream
     let when = 0; 

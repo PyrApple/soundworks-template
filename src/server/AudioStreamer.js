@@ -203,36 +203,95 @@ export default class AudioStreamer {
   }
 
   toMp3(buffer){
-      var mp3Data = [];
+    console.log('jkflds')
+    const Lame = require("node-lame").Lame;
 
-      var mp3encoder = new lamejs.Mp3Encoder(1, 44100, 128); //mono 44.1khz encode to 128kbps
-      var samplesInt = new Int16Array( buffer.length ); //one second of silence replace that with your own samples
-      // for(let i = 0; i < samples.length; i++){
-      //   samples[i] = 256 * Math.random();
+
+    // const filename = __dirname + '/../../public/sounds/wave-a.mp3';
+    const filename = __dirname + '/../../public/sounds/samples/VMH1 Minimal Beats 05.wav';
+
+    this.encoder = new Lame({
+      "output": "buffer",
+      "bitrate": 192
+    }).setFile(filename);
+
+    this.encoder.encode().then( () => {
+      // Encoding finished
+      console.log('HKJFDSHJK')
+      const buffer = this.encoder.getBuffer();
+    }).catch((error) => {
+      console.log('error', error)
+        // Something went wrong
+    });
+
+
+
+    // console.log('jkflds1')
+    // const encoder = new Lame({ "output": "test.mp3", "bitrate": 192 })
+    // console.log('jkflds10')
+    // console.log(buffer);
+    // encoder.setBuffer(buffer);
+    // console.log('jkflds11')
+
+    // encoder.encode()
+    //   .then(() => {
+    //     // Encoding finished
+    //     console.log('encoding finished')
+    //   })
+    //   .catch((error) => {
+    //     // Something went wrong
+    //     console.log('encoding wronged', error)
+    //   });
+
+    //   console.log('jkflds3')
+    //   return undefined;
+
+
+
+
+      // // init
+      // var mp3encoder = new lamejs.Mp3Encoder(1, 44100, 128); //mono 44.1khz encode to 128kbps
+      // var samples = new Int16Array( buffer.length ); //one second of silence replace that with your own samples
+
+      // let sampleBlockSize = 1152; //can be anything but make it a multiple of 576 to make encoders life easier
+
+      // var mp3Data = [];
+      // for (var i = 0; i < samples.length; i += sampleBlockSize) {
+      //   let sampleChunk = samples.subarray(i, i + sampleBlockSize);
+      //   var mp3buf = mp3encoder.encodeBuffer(sampleChunk);
+      //   if (mp3buf.length > 0) {
+      //       mp3Data.push(mp3buf);
+      //   }
       // }
-      var samplesFloat = buffer.getChannelData(0);
+      // var mp3buf = mp3encoder.flush();   //finish writing mp3
+
+      // if (mp3buf.length > 0) {
+      //     mp3Data.push(new Int8Array(mp3buf));
+      // }
+
+      // // var samplesFloat = buffer.getChannelData(0);
       
       
-      for(let i = 0; i < samplesInt.length; i++){
-        samplesInt[i] = Math.round( samplesFloat[i] * 1000 );
-        // if( samples[i] >=  100 ){ console.log(samples[i])}
-      }      
-      // console.log('samples', samples)
-      var mp3Tmp = mp3encoder.encodeBuffer(samplesInt); //encode mp3
+      // // for(let i = 0; i < samplesInt.length; i++){
+      // //   samplesInt[i] = Math.round( samplesFloat[i] * 1000 );
+      // //   // if( samples[i] >=  100 ){ console.log(samples[i])}
+      // // }      
+      // // // console.log('samples', samples)
+      // // var mp3Tmp = mp3encoder.encodeBuffer(samplesInt); //encode mp3
 
-      //Push encode buffer to mp3Data variable
-      mp3Data.push(mp3Tmp);
+      // // //Push encode buffer to mp3Data variable
+      // // mp3Data.push(mp3Tmp);
 
-      // Get end part of mp3
-      mp3Tmp = mp3encoder.flush();
+      // // // Get end part of mp3
+      // // mp3Tmp = mp3encoder.flush();
 
-      // Write last data to the output data, too
-      // mp3Data contains now the complete mp3Data
-      mp3Data.push(mp3Tmp);
+      // // // Write last data to the output data, too
+      // // // mp3Data contains now the complete mp3Data
+      // // mp3Data.push(mp3Tmp);
       
-      console.log(mp3Data)
+      // // console.log(mp3Data)
 
-      return mp3Data;
+      // return mp3Data;
   }
 
 }
