@@ -1,39 +1,67 @@
 /** 
 * TODO: 
 * - Handle short audio files
+* - only functional with wav input files
 **/
 
 ////////////////////////////////////////////////////////
 // UTILS FUNCTIONS 
 ////////////////////////////////////////////////////////
 
-// concatenate 2 Float32 array
-function Float32Concat(first, second)
-{
-  var firstLength = first.length
-  var result = new Float32Array(firstLength + second.length);
-  result.set(first);
-  result.set(second, firstLength);
-  return result;
-}
+// // concatenate 2 Float32 array
+// function Float32Concat(first, second)
+// {
+//   var firstLength = first.length
+//   var result = new Float32Array(firstLength + second.length);
+//   result.set(first);
+//   result.set(second, firstLength);
+//   return result;
+// }
 
-// read file from disk, return audio buffer in promise
-function loadAudioBuffer(fileName) {
+// // read file from disk, return audio buffer in promise
+// function loadAudioBuffer(fileName) {
+//   const promise = new Promise((resolve, reject) => {
+//     fs.readFile(assetsPath + fileName, (error, buffer) => {
+//       // skip if cannot find file
+//       if (error) { 
+//         reject(error);
+//         return; 
+//       }
+//       // decode file data to audio buffer
+//       audioContext.decodeAudioData(buffer, (audioBuffer) => { 
+//         resolve(audioBuffer); },
+//         (error) => { reject(error); });
+//     });
+//   });
+//   return promise;
+// }
+
+// load buffer fileName, return buffer and extracted meta data
+function loadStreamBuffer( fileName ){
   const promise = new Promise((resolve, reject) => {
-    fs.readFile(assetsPath + fileName, (error, buffer) => {
-      // skip if cannot find file
-      if (error) { 
-        reject(error);
-        return; 
-      }
-      // decode file data to audio buffer
-      audioContext.decodeAudioData(buffer, (audioBuffer) => { 
-        resolve(audioBuffer); },
-        (error) => { reject(error); });
-    });
+    let filePath = streamPath + fileName;
+  
+    fs.readFile( filePath, (err, buffer) => {
+      // handle read error
+      if (err) { reject(err); }
+      // read info from wav buffer
+      let wavInfo = wavExtractor.getWavInfos( buffer );
+      // extract relevant info only
+      let metaBuffer = {
+        fileName: fileName,
+        buffer: buffer,
+        dataField: { 
+          start: wavInfo.descriptors.get('data').start,
+          length: wavInfo.descriptors.get('data').length },
+        format: wavInfo.format 
+      };
+
+      // resolve
+      resolve(metaBuffer);
+    });    
   });
   return promise;
-}
+}  
 
 ////////////////////////////////////////////////////////
 // HEADER
@@ -41,35 +69,40 @@ function loadAudioBuffer(fileName) {
 
 // require
 var fs = require('fs');
-var lame = require('lame');
-var toWav = require('audiobuffer-to-wav');
-var AudioContext = require('web-audio-api').AudioContext
-var lamejs = require('lamejs'); // warning: apply use-strict on all future modules required / imported from this point
+const lame = require("node-lame").Lame;
 
 // define constants
-const audioContext = new AudioContext;
-const assetsPath = __dirname + '/../../public/stream/'
-const tmpPath = assetsPath + '../tmp/';
+const streamPath = __dirname + '/../../public/stream/';
 
 ////////////////////////////////////////////////////////
 // MAIN
 ////////////////////////////////////////////////////////
 
 export default class AudioStreamer {
-  constructor( experience ){
+  constructor( experience, streamFilePaths ){
     this.e = experience;
+
+    // locals
     this.bufferMap = new Map();
+
+    // debug: load stream buffer
+    var fileName = 'virtual-barber-shop.wav';
+    loadStreamBuffer( fileName ).then( ( metaBuffer ) => { 
+      this.bufferMap.set(fileName, metaBuffer);
+      console.log('hehe', this.bufferMap); 
+    });
   }
+
 
   /**
   * send audio file meta data to client, used upon stream request.
   */
-  sendMeta( client, fileName, buffer ){
+  sendMeta( client, metaBuffer ){
     let metaData = { 
-      fileName: fileName,
-      sampleRate: buffer.sampleRate, 
-      numberOfChannels: buffer.numberOfChannels,
-      length: buffer.length 
+      fileName: metaBuffer.fileName,
+      sampleRate: metaBuffer.format.sampleRate, 
+      numberOfChannels: metaBuffer.format.numberOfChannels,
+      duration: metaBuffer.dataField.length / metaBuffer.format.secToByteFactor
     };
     console.log( metaData );
     this.e.send(client, 'stream:metaData', metaData);
@@ -83,15 +116,15 @@ export default class AudioStreamer {
       let buffer = this.bufferMap.get(fileName);
       // create it if need be (audio file never requested by any client yet)
       if( buffer === undefined ){
-        loadAudioBuffer(fileName).then( (buffer) => {
+        loadStreamBuffer(fileName).then( (buffer) => {
           // save buffer to avoid reloading next time
-          this.bufferMap.set( fileName, buffer );
+          this.bufferMap.set( metaBuffer.fileName, metaBuffer );
           // send metadata to client
-          this.sendMeta( client, fileName, buffer );
+          this.sendMeta( client, metaBuffer );
         }, (err) => { console.error(err); });
       }
       // if audio file already loaded
-      else{ this.sendMeta( client, fileName, buffer ); }
+      else{ this.sendMeta( client, metaBuffer ); }
     });
 
     // callback: runs when client requests a chunk of audio data
@@ -224,116 +257,88 @@ export default class AudioStreamer {
         // Something went wrong
     });
 
-
-
-    // console.log('jkflds1')
-    // const encoder = new Lame({ "output": "test.mp3", "bitrate": 192 })
-    // console.log('jkflds10')
-    // console.log(buffer);
-    // encoder.setBuffer(buffer);
-    // console.log('jkflds11')
-
-    // encoder.encode()
-    //   .then(() => {
-    //     // Encoding finished
-    //     console.log('encoding finished')
-    //   })
-    //   .catch((error) => {
-    //     // Something went wrong
-    //     console.log('encoding wronged', error)
-    //   });
-
-    //   console.log('jkflds3')
-    //   return undefined;
-
-
-
-
-      // // init
-      // var mp3encoder = new lamejs.Mp3Encoder(1, 44100, 128); //mono 44.1khz encode to 128kbps
-      // var samples = new Int16Array( buffer.length ); //one second of silence replace that with your own samples
-
-      // let sampleBlockSize = 1152; //can be anything but make it a multiple of 576 to make encoders life easier
-
-      // var mp3Data = [];
-      // for (var i = 0; i < samples.length; i += sampleBlockSize) {
-      //   let sampleChunk = samples.subarray(i, i + sampleBlockSize);
-      //   var mp3buf = mp3encoder.encodeBuffer(sampleChunk);
-      //   if (mp3buf.length > 0) {
-      //       mp3Data.push(mp3buf);
-      //   }
-      // }
-      // var mp3buf = mp3encoder.flush();   //finish writing mp3
-
-      // if (mp3buf.length > 0) {
-      //     mp3Data.push(new Int8Array(mp3buf));
-      // }
-
-      // // var samplesFloat = buffer.getChannelData(0);
-      
-      
-      // // for(let i = 0; i < samplesInt.length; i++){
-      // //   samplesInt[i] = Math.round( samplesFloat[i] * 1000 );
-      // //   // if( samples[i] >=  100 ){ console.log(samples[i])}
-      // // }      
-      // // // console.log('samples', samples)
-      // // var mp3Tmp = mp3encoder.encodeBuffer(samplesInt); //encode mp3
-
-      // // //Push encode buffer to mp3Data variable
-      // // mp3Data.push(mp3Tmp);
-
-      // // // Get end part of mp3
-      // // mp3Tmp = mp3encoder.flush();
-
-      // // // Write last data to the output data, too
-      // // // mp3Data contains now the complete mp3Data
-      // // mp3Data.push(mp3Tmp);
-      
-      // // console.log(mp3Data)
-
-      // return mp3Data;
   }
 
 }
 
-// 
 
-// // TODO : encode local wav to mp3 and save to disk
 
-// var wav = require('wav');
-// var lame = require('lame');
+///////////
 
-// wav2mp3(){
-//   // get file name
-//   let fileNameIn = assetsPath + 'wave-a.wav';
-//   let fileNameOut = fileNameIn.substr(0, fileNameIn.lastIndexOf(".")) + ".mp3";
+const StringDecoder = require('string_decoder').StringDecoder;
 
-//   console.log('-->file in:\n', fileNameIn);
-//   console.log('<--file out:\n', fileNameOut);
-  
-//   // create fs streams
-//   let input = fs.createReadStream(fileNameIn);
-//   let output = fs.createWriteStream(fileNameOut);
+const wavExtractor = {
 
-//   // start reading the WAV file from the input
-//   let reader = new wav.Reader();
+byteLength: 4,
 
-//   // we have to wait for the "format" event before we can start encoding
-//   reader.on('format', (format) => {
+decoder: new StringDecoder('utf8'),
 
-//     // display format
-//     console.log('WAV format:');
-//     for (var name in format) {
-//       if (format.hasOwnProperty(name)) {
-//         console.log('\t', name, format[name]);
-//       }
-//     }      
+getWavInfos( buffer ){
+  console.log('input buffer length', buffer.length);
+  // get header descriptors
+  let descriptors = this.getWavDescriptors( buffer );
+  console.log(descriptors);
+  // get format specific info
+  let format = this.getWavFormat( descriptors, buffer );
+  return { descriptors: descriptors, format: format };
+},
 
-//     // encoding the wave file into an MP3 is as simple as calling pipe()
-//     let encoder = new lame.Encoder(format);
-//     reader.pipe(encoder).pipe(output);      
-//   });
+// format info, see http://www.topherlee.com/software/pcm-tut-wavformat.html
+getWavFormat(descriptors, buffer) {
+  let fmt = descriptors.get('fmt ');
+  let format = { 
+    type: buffer.readUIntLE( fmt.start, 2 ), 
+    numberOfChannels: buffer.readUIntLE( fmt.start + 2, 2 ), 
+    sampleRate: buffer.readUIntLE( fmt.start + 4, 4 ), 
+    secToByteFactor: buffer.readUIntLE( fmt.start + 8, 4 ), // (Sample Rate * BitsPerSample * Channels) / 8
+    weird: buffer.readUIntLE( fmt.start + 12, 2 ), // (BitsPerSample * Channels) / 8.1 - 8 bit mono2 - 8 bit stereo/16 bit mono4 - 16 bit stereo
+    bitPerSample: buffer.readUIntLE( fmt.start + 14, 2 )
+  };
+  console.log( format );
+  return format;
+},
 
-//   // and start transferring the data
-//   input.pipe(reader);
-// }
+getWavDescriptors(buffer) {
+  // init header read
+  let index = 0;
+  let descriptor = '';
+  let chunkLength = 0;
+  let descriptors = new Map();
+
+  // search for buffer descriptors
+  let continueReading = true
+  while( continueReading ){
+
+    // read chunk descriptor
+    let bytes = buffer.slice(index, index + this.byteLength);
+    descriptor = this.decoder.write(bytes);
+    
+    // special case for RIFF descriptor (header, fixed length)
+    if( descriptor === 'RIFF' ){
+    // read RIFF descriptor
+    chunkLength = 3*this.byteLength;
+    descriptors.set(descriptor, { start:index + this.byteLength, length: chunkLength } );
+    // first subchunk will always be at byte 12
+    index += chunkLength;
+    }
+    else{
+      // account for descriptor length
+      index += this.byteLength;
+
+      // read chunk length
+      chunkLength = buffer.readUIntLE(index, this.byteLength);
+
+      // fill in descriptor map
+      descriptors.set(descriptor, { start:index + this.byteLength, length: chunkLength } );
+
+      // increment read index
+      index += chunkLength + this.byteLength;
+    }
+
+
+    // stop loop when reached buffer end
+    if( index >= buffer.length - 1 ){ return descriptors; }
+  }
+}
+
+}

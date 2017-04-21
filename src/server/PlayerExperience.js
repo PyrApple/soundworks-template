@@ -19,7 +19,11 @@ export default class PlayerExperience extends Experience {
     this.audioBufferManager = this.require('audio-buffer-manager');
 
     // locals
-    this.audioStreamer = new AudioStreamer(this);
+    let streamFilePaths = [
+      'virtual-barber-shop.wav',
+    ]
+  
+    this.audioStreamer = new AudioStreamer(this, streamFilePaths);
   }
 
   // if anything needs to append when the experience starts

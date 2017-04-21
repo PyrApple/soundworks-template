@@ -29,7 +29,7 @@
     "fs": "0.0.1-security",
     "lame": "^1.2.4",
     "lamejs": "^1.1.0",
-    "node-lame": "^1.0.2",
+    "node-lame": "^1.0.3",
     "soundworks": "collective-soundworks/soundworks#v1.1.1",
     "source-map-support": "^0.4.0",
     "w3c-xmlhttprequest": "^2.1.2",
